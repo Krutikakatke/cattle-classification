@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cattle Breed Classifier</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐄 Cattle Breed Classifier</h1>
+            <p class="subtitle">Upload an image to identify the cattle breed</p>
+        </header>
+
+        <div class="upload-section">
+            <div class="upload-box" id="uploadBox">
+                <input type="file" id="fileInput" accept="image/png,image/jpeg,image/jpg" hidden>
+                <div class="upload-content">
+                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p class="upload-text">Click to upload or drag and drop</p>
+                    <p class="upload-subtext">PNG, JPG, JPEG (Max 16MB)</p>
+                </div>
+            </div>
+            <button id="predictBtn" class="btn-predict" disabled>Analyze Image</button>
+        </div>
+
+        <div id="loadingSpinner" class="loading-spinner hidden">
+            <div class="spinner"></div>
+            <p>Analyzing image...</p>
+        </div>
+
+        <div id="resultsSection" class="results-section hidden">
+            <div class="image-preview">
+                <img id="previewImage" src="" alt="Uploaded cattle image">
+            </div>
+            
+            <div class="prediction-card">
+                <h2>Prediction Results</h2>
+                <div class="main-prediction">
+                    <div class="breed-name" id="breedName">-</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidenceFill"></div>
+                        <span class="confidence-text" id="confidenceText">0%</span>
+                    </div>
+                </div>
+
+                <div class="top-predictions">
+                    <h3>Top 3 Predictions</h3>
+                    <div id="topPredictionsList"></div>
+                </div>
+            </div>
+
+            <button id="resetBtn" class="btn-reset">Analyze Another Image</button>
+        </div>
+
+        <div id="errorMessage" class="error-message hidden"></div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const uploadBox = document.getElementById('uploadBox');
+        const predictBtn = document.getElementById('predictBtn');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorMessage = document.getElementById('errorMessage');
+        const resetBtn = document.getElementById('resetBtn');
+        const previewImage = document.getElementById('previewImage');
+        const breedName = document.getElementById('breedName');
+        const confidenceText = document.getElementById('confidenceText');
+        const confidenceFill = document.getElementById('confidenceFill');
+        const topPredictionsList = document.getElementById('topPredictionsList');
+
+        let selectedFile = null;
+
+        // Click to upload
+        uploadBox.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop
+        uploadBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBox.classList.add('dragover');
+        });
+
+        uploadBox.addEventListener('dragleave', () => {
+            uploadBox.classList.remove('dragover');
+        });
+
+        uploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBox.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            if (!file.type.match('image/(png|jpeg|jpg)')) {
+                showError('Please select a valid image file (PNG, JPG, JPEG)');
+                return;
+            }
+
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadBox.style.backgroundImage = `url(${e.target.result})`;
+                uploadBox.style.backgroundSize = 'cover';
+                uploadBox.style.backgroundPosition = 'center';
+                uploadBox.querySelector('.upload-content').style.display = 'none';
+                predictBtn.disabled = false;
+            };
+            reader.readAsDataURL(file);
+            hideError();
+        }
+
+        // Predict button click
+        predictBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            // Show loading, hide results and errors
+            loadingSpinner.classList.remove('hidden');
+            resultsSection.classList.add('hidden');
+            hideError();
+            predictBtn.disabled = true;
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResults(data);
+                } else {
+                    showError(data.error || 'Prediction failed');
+                    predictBtn.disabled = false;
+                }
+            } catch (error) {
+                showError('Network error. Please try again.');
+                predictBtn.disabled = false;
+            } finally {
+                loadingSpinner.classList.add('hidden');
+            }
+        });
+
+        function displayResults(data) {
+            // Display image
+            previewImage.src = `data:image/jpeg;base64,${data.image}`;
+
+            // Display main prediction
+            breedName.textContent = data.predicted_breed;
+            confidenceText.textContent = `${data.confidence}%`;
+            confidenceFill.style.width = `${data.confidence}%`;
+
+            // Color code confidence
+            if (data.confidence >= 70) {
+                confidenceFill.style.backgroundColor = '#10b981';
+            } else if (data.confidence >= 50) {
+                confidenceFill.style.backgroundColor = '#f59e0b';
+            } else {
+                confidenceFill.style.backgroundColor = '#ef4444';
+            }
+
+            // Display top 3 predictions
+            topPredictionsList.innerHTML = data.top_predictions.map((pred, idx) => `
+                <div class="prediction-item">
+                    <span class="rank">${idx + 1}</span>
+                    <span class="pred-breed">${pred.breed}</span>
+                    <span class="pred-conf">${pred.confidence.toFixed(2)}%</span>
+                </div>
+            `).join('');
+
+            resultsSection.classList.remove('hidden');
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+
+        // Reset button
+        resetBtn.addEventListener('click', () => {
+            selectedFile = null;
+            fileInput.value = '';
+            uploadBox.style.backgroundImage = '';
+            uploadBox.querySelector('.upload-content').style.display = 'flex';
+            predictBtn.disabled = true;
+            resultsSection.classList.add('hidden');
+            hideError();
+        });
+    </script>
+</body>
+</html>
