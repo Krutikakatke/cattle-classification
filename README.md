@@ -4,7 +4,6 @@
 A complete end-to-end deep learning project that classifies 40+ Indian cattle breeds from images using CNNs, with real-world evaluation, visualization, and deployment-ready design.
 
 ⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻
-🏗️ Project Architecture
 
 📌 Project Overview
 
@@ -18,6 +17,7 @@ This project aims to automatically classify Indian cattle breeds from images usi
 This is not just a model, but a complete machine learning pipeline — from dataset handling to evaluation and analysis.
 
 ⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻
+
 🧠 What I Built
 
 ✔️ A multi-class image classification system
@@ -224,6 +224,8 @@ Visualization is a critical part of ML communication, not an afterthought.
 	•	🔹 Face + body feature separation
 	•	🔹 Mobile/Web deployment
 	•	🔹 Real-time breed prediction
+
+⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻
 
 🧪 How to Run the Project
 
